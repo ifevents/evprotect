@@ -1,0 +1,27 @@
+{
+  "name": "@ifevents/evprotect",
+  "version": "0.1.0",
+  "description": "Unifi Protect API",
+  "main": "evprotect/index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ifevents/evprotect.git"
+  },
+  "author": "ifevents",
+  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://github.com/ifevents/evprotect/issues"
+  },
+  "homepage": "https://github.com/ifevents/evprotect#readme",
+  "devDependencies": {
+    "expect.js": "^0.3.1",
+    "mocha": "^10.7.3"
+  },
+  "dependencies": {
+    "@adobe/fetch": "^4.1.9",
+    "ws": "^8.18.0"
+  }
+}
