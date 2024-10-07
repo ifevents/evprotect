@@ -107,15 +107,12 @@ const apiWebSocket = (options, callback) => {
   })
 
   options.ws.on('message', packet => {
-    // console.log(packet.readInt8(0))
-    // console.log(packet[0], packet[1], packet[2], packet[3])
-    // console.log('length', packet.readInt32BE(4))
-    // console.log(packet.slice(8).toString('utf8'))
-    const bytes = packet.readInt32BE(4)
-    const payload = JSON.parse(packet.slice(8, bytes + 8).toString('utf8'))
+    // calculate the offset of secons packet
+    const offset = packet.readUInt32BE(4) + 8
+    const header = JSON.parse(packet.slice(8, packet.readUInt32BE(4) + 8))
+    const data = JSON.parse(packet.slice(offset + 8).toString())
 
-    options.lastUpdateId = payload.newUpdateId
-    callback('websocket', payload)
+    return callback('websocket', { header, data })
   })
 
   options.ws.on('error', err => console.log(err))
