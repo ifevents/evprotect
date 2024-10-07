@@ -111,7 +111,11 @@ const apiWebSocket = (options, callback) => {
     // console.log(packet[0], packet[1], packet[2], packet[3])
     // console.log('length', packet.readInt32BE(4))
     // console.log(packet.slice(8).toString('utf8'))
-    callback('websocket', JSON.parse(packet.slice(8, packet.readInt32BE(4) + 8).toString('utf8')))
+    const bytes = packet.readInt32BE(4)
+    const payload = JSON.parse(packet.slice(8, bytes + 8).toString('utf8'))
+
+    options.lastUpdateId = payload.newUpdateId
+    callback('websocket', payload)
   })
 
   options.ws.on('error', err => console.log(err))
