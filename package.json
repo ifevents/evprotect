@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Unifi Protect API",
   "main": "evprotect/index.js",
+  "type": "module",
   "scripts": {
     "test": "mocha"
   },
