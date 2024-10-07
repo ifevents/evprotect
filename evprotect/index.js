@@ -110,6 +110,8 @@ const apiWebSocket = (options, callback) => {
     // calculate the offset of secons packet
     const offset = packet.readUInt32BE(4) + 8
     const header = JSON.parse(packet.slice(8, packet.readUInt32BE(4) + 8))
+    options.lastUpdateId = header.newUpdateId
+
     const data = JSON.parse(packet.slice(offset + 8).toString())
 
     return callback('websocket', { header, data })
