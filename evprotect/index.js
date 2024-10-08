@@ -1,5 +1,8 @@
 import { context, AbortController, ALPNProtocol } from '@adobe/fetch'
 import { WebSocket } from 'ws'
+import createDebugger from 'debug'
+
+const debug = createDebugger('ifevents/evprotect')
 
 const DEFAULT_OPTIONS = {
   timeout: 5000,
@@ -12,12 +15,23 @@ const { fetch } = context({
 })
 
 const validateOptions = options => {
-  if (!options.domain || typeof options.domain !== 'string') return false
-  if (!options.username || typeof options.username !== 'string') return false
-  if (!options.password || typeof options.password !== 'string') return false
+  if (!options.domain || typeof options.domain !== 'string') {
+    debug('options.domain required (string).')
+    return false
+  }
+  if (!options.username || typeof options.username !== 'string') {
+    debug('options.username required (string).')
+    return false
+  }
+
+  if (!options.password || typeof options.password !== 'string') {
+    debug('options.password required (string).')
+    return false
+  }
 
   // check the rest (defaults) for type and constraints
 
+  debug('options have been validated.')
   return true
 }
 
@@ -29,12 +43,14 @@ const apiRequest = (options, path, inParams = {}) => {
   const uri = `https://${options.domain}${path}`
 
   if (!params.signal) {
+    debug('No abort timer. Creating a new one,')
     abort = new AbortController()
     params.signal = abort.signal
     timeout = setTimeout(() => abort.abort(), options.timeout)
   }
 
   const clearAbortTimer = result => {
+    debug('Clearing abort timer.')
     if (timeout) clearTimeout(timeout)
     return result
   }
@@ -42,6 +58,7 @@ const apiRequest = (options, path, inParams = {}) => {
   // we are rejecting with the request object so calling functions can
   // inspect it and throw an Error object that makes sense in context
   const rejectIfNotOk = request => {
+    debug('Checking HTTP response.')
     return request.ok ? request : Promise.reject(request)
   }
 
@@ -69,7 +86,10 @@ const apiLogin = options => {
       request.headers.get('x-updated-csrf-token') ||
       request.headers.get('x-csrf-token')
 
-    if (csrf) options.csrf = csrf
+    if (csrf) {
+      debug('CSRF Token:', csrf)
+      options.csrf = csrf
+    }
 
     return request
   }
@@ -100,10 +120,16 @@ const apiBootstrap = options => {
     })
 }
 
+const generateWebSocketUri = (domain, lastUpdateId) => (
+  `https://${domain}/proxy/protect/ws/updates?lastUpdateId=${lastUpdateId}`
+)
+
 const apiWebSocket = (options, callback) => {
-  options.ws = new WebSocket(`https://${options.domain}/proxy/protect/ws/updates?lastUpdateId=${options.lastUpdateId}`, {
+  const uri = generateWebSocketUri(options.domain, options.lastUpdateId)
+
+  options.ws = new WebSocket(uri, {
     rejectUnauthorized: false,
-    headers: { 'cookie': `TOKEN=${options.token}` },
+    headers: { 'cookie': `TOKEN = ${options.token}` },
   })
 
   options.ws.on('message', packet => {
@@ -113,7 +139,7 @@ const apiWebSocket = (options, callback) => {
     options.lastUpdateId = header.newUpdateId
 
     const data = JSON.parse(packet.slice(offset + 8).toString())
-
+    debug('Packet received:', `${header.action}(${header.modelKey})`)
     return callback('websocket', { header, data })
   })
 
@@ -125,7 +151,7 @@ export default function evprotect(inOptions, inCallback) {
   const options = Object.assign({}, DEFAULT_OPTIONS, inOptions)
 
   if (!validateOptions(options)) {
-    throw new Error('Input options are invalid or missing.')
+    return Promise.reject(new Error('Input options are invalid or missing.'))
   }
 
   const self = {
