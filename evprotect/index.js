@@ -124,7 +124,7 @@ const generateWebSocketUri = (domain, lastUpdateId) => (
   `https://${domain}/proxy/protect/ws/updates?lastUpdateId=${lastUpdateId}`
 )
 
-const apiWebSocket = (options, callback) => {
+const apiWebSocket = (options, bootstrap, callback) => {
   const uri = generateWebSocketUri(options.domain, options.lastUpdateId)
 
   options.ws = new WebSocket(uri, {
@@ -140,7 +140,23 @@ const apiWebSocket = (options, callback) => {
 
     const data = JSON.parse(packet.slice(offset + 8).toString())
     debug('Packet received:', `${header.action}(${header.modelKey})`)
-    return callback('websocket', { header, data })
+
+    if (header.action === 'update' && header.modelKey !== 'event') {
+      if (header.modelKey === 'nvr') {
+        Object.assign(bootstrap, data)
+      }
+      else {
+        const subArray = bootstrap[`${header.modelKey}s`]
+        if (!subArray) return payload
+
+        const subObject = subArray.find(e => e.id === header.id)
+        if (!subObject) return payload
+
+        Object.assign(subObject, data)
+      }
+    }
+
+    return callback(`/${header.action}/${header.modelKey}/${header.id}`, bootstrap, { header, data })
   })
 
   options.ws.on('error', err => console.log(err))
@@ -149,6 +165,7 @@ const apiWebSocket = (options, callback) => {
 export default function evprotect(inOptions, inCallback) {
   // detach inOptions from the calling context and apply defaults
   const options = Object.assign({}, DEFAULT_OPTIONS, inOptions)
+  const bootstrap = { login: {} }
 
   if (!validateOptions(options)) {
     return Promise.reject(new Error('Input options are invalid or missing.'))
@@ -165,8 +182,8 @@ export default function evprotect(inOptions, inCallback) {
   }
 
   return apiLogin(options)
-    .then(executeTheCallback('login'))
+    .then(result => Object.assign(bootstrap.login, result))
     .then(() => apiBootstrap(options))
-    .then(executeTheCallback('bootstrap'))
-    .then(() => apiWebSocket(options, callback))
+    .then(result => Object.assign(bootstrap, result))
+    .then(() => apiWebSocket(options, bootstrap, callback))
 }
